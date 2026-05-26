@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Music Player PWA</title>
+  <meta name="description" content="Premium offline local music player with visualizer, smart lyrics, and adaptive UI.">
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Local Music Player&quot;,&quot;short_name&quot;:&quot;Music&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0b0b0c&quot;,&quot;theme_color&quot;:&quot;#1DB954&quot;}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- Top Header with Hamburger -->
+    <header class="app-header">
+      <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+      <div class="logo">🎵 Local Music</div>
+    </header>
+
+    <div class="content-wrapper">
+      <!-- Collapsible Navigation Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <span class="logo-text">🎵 Navigasi</span>
+          <button class="close-sidebar" id="closeSidebar">×</button>
+        </div>
+        <nav class="sidebar-nav">
+          <button data-view="library" class="nav-item active">
+            <span class="nav-icon">📚</span>
+            <span class="nav-text">Library</span>
+          </button>
+          <button data-view="foryou" class="nav-item">
+            <span class="nav-icon">✨</span>
+            <span class="nav-text">For You</span>
+          </button>
+          <button data-view="playlists" class="nav-item">
+            <span class="nav-icon">🎶</span>
+            <span class="nav-text">Playlists</span>
+          </button>
+          <button data-view="search" class="nav-item">
+            <span class="nav-icon">🔍</span>
+            <span class="nav-text">Search</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Mobile Sidebar Overlay -->
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+      <!-- Main Content Views -->
+      <main class="main-content">
+        <!-- Library View with Sub-Tabs -->
+        <section id="library" class="view active">
+          <h2 class="view-title">Library Lagu</h2>
+          <button class="import-btn" id="importFolder">
+            <span>📂</span> Import Music Folder
+          </button>
+          <input type="file" id="fallbackInput" multiple webkitdirectory hidden>
+
+          <!-- Library Sub-Tabs -->
+          <div class="lib-tabs" id="libTabs">
+            <button class="lib-tab active" data-tab="allSongs">All Songs</button>
+            <button class="lib-tab" data-tab="albums">Albums</button>
+            <button class="lib-tab" data-tab="artists">Artists</button>
+            <button class="lib-tab" data-tab="recentlyAdded">Recently Added</button>
+            <button class="lib-tab" data-tab="favorites">Favorites</button>
+          </div>
+
+          <!-- Tab Content Panes -->
+          <div id="allSongs" class="lib-tab-content active">
+            <div id="libraryList"></div>
+          </div>
+          <div id="albums" class="lib-tab-content">
+            <div class="card-grid" id="albumsGrid"></div>
+          </div>
+          <div id="artists" class="lib-tab-content">
+            <div class="card-grid" id="artistsGrid"></div>
+          </div>
+          <div id="recentlyAdded" class="lib-tab-content">
+            <div id="recentList"></div>
+          </div>
+          <div id="favorites" class="lib-tab-content">
+            <div id="favoritesList"></div>
+          </div>
+        </section>
+
+        <!-- For You View -->
+        <section id="foryou" class="view">
+          <h2 class="view-title">✨ For You</h2>
+          <div id="foryouContent"></div>
+        </section>
+
+        <!-- Playlists View -->
+        <section id="playlists" class="view">
+          <h2 class="view-title">Playlist Saya</h2>
+          <button class="import-btn" id="newPlaylist">
+            <span>➕</span> Playlist Baru
+          </button>
+          <div class="playlist-grid" id="playlistList"></div>
+        </section>
+
+        <!-- Search View -->
+        <section id="search" class="view">
+          <h2 class="view-title">Cari Musik</h2>
+          <input type="text" class="search-box" placeholder="Cari lagu, artis, atau album..." id="searchInput">
+          <div id="searchResults"></div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Docked Mini Player -->
+    <div class="mini-player" id="miniPlayer">
+      <div class="progress-mini" id="miniProgress"></div>
+      <img id="miniCover" src="synthwave_cover.png" alt="Cover Art">
+      <div style="flex: 1; overflow: hidden;">
+        <div id="miniTitle">Memuat musik...</div>
+        <div id="miniArtist" style="font-size: 0.85rem; color: #aaa;"></div>
+      </div>
+      <button class="icon-btn" id="miniPlay" style="font-size: 1.3rem; margin-right: 8px;">▶</button>
+      <button class="icon-btn" id="miniNext" style="font-size: 1.3rem;">⏭</button>
+    </div>
+  </div>
+
+  <!-- Now Playing Screen -->
+  <div class="now-playing" id="nowPlaying">
+    <div class="blur-bg" id="blurBg"></div>
+    <div class="now-content">
+      <!-- Back Button Area -->
+      <div class="now-header">
+        <button class="back-btn" id="closeNow">
+          <span class="back-icon">←</span>
+          <span class="back-text">Kembali</span>
+        </button>
+      </div>
+
+      <!-- Visualizer -->
+      <div class="visualizer-wrap">
+        <canvas id="visualizerCanvas"></canvas>
+      </div>
+
+      <!-- Large Album Art Container -->
+      <div class="cover-large-container">
+        <img class="cover-large" id="coverLarge" src="synthwave_cover.png" alt="Album Cover">
+      </div>
+
+      <!-- Title & Artist Metadata -->
+      <div class="np-meta">
+        <h2 id="npTitle">Memuat Musik...</h2>
+        <p id="npArtist"></p>
+      </div>
+
+      <!-- Custom Seekbar & Timestamps -->
+      <div class="seek-container">
+        <input type="range" min="0" max="100" value="0" class="seek" id="seekBar">
+        <div class="time-row">
+          <span id="currentTime">0:00</span>
+          <span id="duration">0:00</span>
+        </div>
+      </div>
+
+      <!-- Transport Controls -->
+      <div class="controls">
+        <button id="shuffleBtn" title="Shuffle">🔀</button>
+        <button id="prevBtn" title="Sebelumnya">⏮</button>
+        <button class="big-play" id="playBtn" title="Putar/Jeda">▶</button>
+        <button id="nextBtn" title="Berikutnya">⏭</button>
+        <button id="repeatBtn" title="Ulangi">🔁</button>
+      </div>
+
+      <!-- Volume Slider -->
+      <div class="volume-row">
+        <span>🔈</span>
+        <input type="range" min="0" max="100" value="100" class="volume-slider" id="volumeSlider">
+        <span>🔊</span>
+      </div>
+
+      <!-- Synchronized / Static Lyrics -->
+      <div class="lyrics" id="lyrics"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
