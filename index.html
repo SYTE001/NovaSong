@@ -2,47 +2,46 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Local Music Player PWA</title>
   <meta name="description" content="Premium offline local music player with visualizer, smart lyrics, and adaptive UI.">
   <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Local Music Player&quot;,&quot;short_name&quot;:&quot;Music&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0b0b0c&quot;,&quot;theme_color&quot;:&quot;#1DB954&quot;}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js" defer></script>
 </head>
 <body>
   <div class="app">
     <!-- Top Header with Hamburger -->
     <header class="app-header">
-      <button class="sidebar-toggle" id="sidebarToggle"><i class="ph-bold ph-list"></i></button>
-      <div class="logo"><i class="ph-fill ph-music-notes"></i> Local Music</div>
+      <button class="sidebar-toggle" id="sidebarToggle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="logo"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17a3 3 0 11-3-3h1V5.5L19 3v11a3 3 0 11-3-3h1V6.85L9 8.35V17z"/></svg> Local Music</div>
     </header>
 
     <div class="content-wrapper">
       <!-- Collapsible Navigation Sidebar -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-          <span class="logo-text"><i class="ph-fill ph-music-notes"></i> Navigasi</span>
-          <button class="close-sidebar" id="closeSidebar"><i class="ph-bold ph-x"></i></button>
+          <span class="logo-text"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17a3 3 0 11-3-3h1V5.5L19 3v11a3 3 0 11-3-3h1V6.85L9 8.35V17z"/></svg> Navigasi</span>
+          <button class="close-sidebar" id="closeSidebar"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
         <nav class="sidebar-nav">
           <button data-view="library" class="nav-item active">
-            <span class="nav-icon"><i class="ph-bold ph-books"></i></span>
+            <span class="nav-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>
             <span class="nav-text">Library</span>
           </button>
           <button data-view="foryou" class="nav-item">
-            <span class="nav-icon"><i class="ph-bold ph-sparkle"></i></span>
+            <span class="nav-icon"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l2.5 8.5L23 12l-8.5 2.5L12 23l-2.5-8.5L1 12l8.5-2.5z"/></svg></span>
             <span class="nav-text">For You</span>
           </button>
           <button data-view="playlists" class="nav-item">
-            <span class="nav-icon"><i class="ph-bold ph-playlist"></i></span>
+            <span class="nav-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 6h12M3 12h12M3 18h7"/><path d="M17 14l5 3-5 3z" fill="currentColor" stroke="none"/></svg></span>
             <span class="nav-text">Playlists</span>
           </button>
           <button data-view="search" class="nav-item">
-            <span class="nav-icon"><i class="ph-bold ph-magnifying-glass"></i></span>
+            <span class="nav-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M21 21l-4.35-4.35"/></svg></span>
             <span class="nav-text">Search</span>
           </button>
         </nav>
@@ -57,7 +56,7 @@
         <section id="library" class="view active">
           <h2 class="view-title">Library Lagu</h2>
           <button class="import-btn" id="importFolder">
-            <span><i class="ph-bold ph-folder-open"></i></span> Import Music Folder
+            <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span> Import Music Folder
           </button>
           <input type="file" id="fallbackInput" multiple webkitdirectory hidden>
           <input type="file" id="fileInput" multiple accept="audio/*,.mp3,.wav,.ogg,.flac,.aac,.m4a" hidden>
@@ -91,7 +90,7 @@
 
         <!-- For You View -->
         <section id="foryou" class="view">
-          <h2 class="view-title"><i class="ph-bold ph-sparkle"></i> For You</h2>
+          <h2 class="view-title"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l2.5 8.5L23 12l-8.5 2.5L12 23l-2.5-8.5L1 12l8.5-2.5z"/></svg> For You</h2>
           <div id="foryouContent"></div>
         </section>
 
@@ -99,7 +98,7 @@
         <section id="playlists" class="view">
           <h2 class="view-title">Playlist Saya</h2>
           <button class="import-btn" id="newPlaylist">
-            <span><i class="ph-bold ph-plus"></i></span> Playlist Baru
+            <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span> Playlist Baru
           </button>
           <div class="playlist-grid" id="playlistList"></div>
         </section>
@@ -116,13 +115,13 @@
     <!-- Docked Mini Player -->
     <div class="mini-player" id="miniPlayer">
       <div class="progress-mini" id="miniProgress"></div>
-      <img id="miniCover" src="synthwave_cover.png" alt="Cover Art">
+      <img id="miniCover" src="synthwave_cover.png" alt="Cover Art" loading="lazy">
       <div style="flex: 1; overflow: hidden;">
         <div id="miniTitle">Memuat musik...</div>
         <div id="miniArtist" style="font-size: 0.85rem; color: #aaa;"></div>
       </div>
-      <button class="icon-btn" id="miniPlay" style="font-size: 1.6rem; margin-right: 8px;"><i class="ph-fill ph-play-circle"></i></button>
-      <button class="icon-btn" id="miniNext" style="font-size: 1.4rem;"><i class="ph-fill ph-skip-forward"></i></button>
+      <button class="icon-btn" id="miniPlay" style="font-size: 1.6rem; margin-right: 8px;"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg></button>
+      <button class="icon-btn" id="miniNext" style="font-size: 1.4rem;"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4zm12 0h2v16h-2V4z"/></svg></button>
     </div>
   </div>
 
@@ -133,7 +132,7 @@
       <!-- Back Button Area -->
       <div class="now-header">
         <button class="back-btn" id="closeNow">
-          <span class="back-icon"><i class="ph-bold ph-arrow-left"></i></span>
+          <span class="back-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></span>
           <span class="back-text">Kembali</span>
         </button>
       </div>
@@ -145,7 +144,7 @@
 
       <!-- Large Album Art Container -->
       <div class="cover-large-container">
-        <img class="cover-large" id="coverLarge" src="synthwave_cover.png" alt="Album Cover">
+        <img class="cover-large" id="coverLarge" src="synthwave_cover.png" alt="Album Cover" loading="lazy">
       </div>
 
       <!-- Title & Artist Metadata -->
@@ -165,18 +164,18 @@
 
       <!-- Transport Controls -->
       <div class="controls">
-        <button id="shuffleBtn" title="Shuffle"><i class="ph-bold ph-shuffle"></i></button>
-        <button id="prevBtn" title="Sebelumnya"><i class="ph-fill ph-skip-back"></i></button>
-        <button class="big-play" id="playBtn" title="Putar/Jeda"><i class="ph-fill ph-play"></i></button>
-        <button id="nextBtn" title="Berikutnya"><i class="ph-fill ph-skip-forward"></i></button>
-        <button id="repeatBtn" title="Ulangi"><i class="ph-bold ph-repeat"></i></button>
+        <button id="shuffleBtn" title="Shuffle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
+        <button id="prevBtn" title="Sebelumnya"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16zM5 4h2v16H5V4z"/></svg></button>
+        <button class="big-play" id="playBtn" title="Putar/Jeda"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg></button>
+        <button id="nextBtn" title="Berikutnya"><svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4zm12 0h2v16h-2V4z"/></svg></button>
+        <button id="repeatBtn" title="Ulangi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
       </div>
 
       <!-- Volume Slider -->
       <div class="volume-row">
-        <span><i class="ph-bold ph-speaker-low"></i></span>
+        <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></span>
         <input type="range" min="0" max="100" value="100" class="volume-slider" id="volumeSlider">
-        <span><i class="ph-bold ph-speaker-high"></i></span>
+        <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg></span>
       </div>
 
       <!-- Synchronized / Static Lyrics -->
@@ -186,6 +185,6 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>

@@ -45,6 +45,21 @@ const COVER_GRADIENTS = [
   ['#08aeea', '#2af598'], ['#fee140', '#fa709a'], ['#fbc2eb', '#a6c1ee']
 ];
 
+// Inline SVG Icons — replaces entire Phosphor Icons library (~80-120MB runtime savings)
+const IC = {
+  musicNotes: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17a3 3 0 11-3-3h1V5.5L19 3v11a3 3 0 11-3-3h1V6.85L9 8.35V17z"/></svg>',
+  play: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>',
+  pause: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg>',
+  playCircle: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>',
+  pauseCircle: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h-2V8h2v8zm4 0h-2V8h2v8z"/></svg>',
+  skipForward: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4l10 8-10 8V4zm12 0h2v16h-2V4z"/></svg>',
+  skipBack: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M19 20L9 12l10-8v16zM5 4h2v16H5V4z"/></svg>',
+  repeat: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>',
+  repeatOnce: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/><text x="12" y="14" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">1</text></svg>',
+  heart: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg>',
+  heartFill: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg>',
+};
+
 class MusicPlayerApp {
   constructor() {
     this.audio = new Audio();
@@ -69,15 +84,23 @@ class MusicPlayerApp {
     this.crossfadeTimeout = null;
 
     // Advanced Visualizer State
-    this.visualizerMode = 0; // 0: Symmetrical Pillars, 1: Siri Fluid Wave, 2: Glow Waveform & Particles
+    this.visualizerMode = 0;
     this.visualizerPeaks = [];
     this.visualizerParticles = [];
     this.visualizerSmoothed = [];
     this.visualizerPhase = 0;
-    this.visualizerModeChangeTime = 0; // Timer to display mode name on screen
+    this.visualizerModeChangeTime = 0;
+    this._cachedAccentRGB = '29, 185, 84';
 
-    // Dominant color cache (songId -> {r, g, b})
+    // Dominant color cache (limited to 15 entries)
     this.colorCache = {};
+    this._colorCacheKeys = [];
+
+    // Toast debounce
+    this._toastTimeout = null;
+
+    // Search debounce
+    this._searchTimeout = null;
 
     this.init();
   }
@@ -172,7 +195,7 @@ class MusicPlayerApp {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const importBtn = document.getElementById('importFolder');
     if (isMobile && importBtn) {
-      importBtn.innerHTML = '<span><i class="ph-bold ph-music-notes"></i></span> Import Music Files';
+      importBtn.innerHTML = '<span>' + IC.musicNotes + '</span> Import Music Files';
     }
 
     if (importBtn) {
@@ -197,15 +220,18 @@ class MusicPlayerApp {
       };
     }
 
-    // Search
+    // Search (debounced 300ms)
     document.getElementById('searchInput').oninput = e => {
-      const q = e.target.value.toLowerCase();
-      const result = this.songs.filter(s =>
-        s.title.toLowerCase().includes(q) ||
-        s.artist.toLowerCase().includes(q) ||
-        s.album.toLowerCase().includes(q)
-      );
-      this.renderSongs(result, document.getElementById('searchResults'));
+      clearTimeout(this._searchTimeout);
+      this._searchTimeout = setTimeout(() => {
+        const q = e.target.value.toLowerCase();
+        const result = this.songs.filter(s =>
+          s.title.toLowerCase().includes(q) ||
+          s.artist.toLowerCase().includes(q) ||
+          s.album.toLowerCase().includes(q)
+        );
+        this.renderSongs(result, document.getElementById('searchResults'));
+      }, 300);
     };
 
     // Mini player opens Now Playing
@@ -245,13 +271,13 @@ class MusicPlayerApp {
       const repeatBtn = document.getElementById('repeatBtn');
       if (this.repeatMode === 'off') {
         repeatBtn.classList.remove('active');
-        repeatBtn.innerHTML = '<i class="ph-bold ph-repeat"></i>';
+        repeatBtn.innerHTML = IC.repeat;
       } else if (this.repeatMode === 'all') {
         repeatBtn.classList.add('active');
-        repeatBtn.innerHTML = '<i class="ph-bold ph-repeat"></i>';
+        repeatBtn.innerHTML = IC.repeat;
       } else if (this.repeatMode === 'one') {
         repeatBtn.classList.add('active');
-        repeatBtn.innerHTML = '<i class="ph-bold ph-repeat-once"></i>';
+        repeatBtn.innerHTML = IC.repeatOnce;
       }
       this.toast('Repeat: ' + this.repeatMode.toUpperCase());
     };
@@ -537,7 +563,7 @@ class MusicPlayerApp {
         title: meta.title || file.name.replace(/\.[^.]+$/, ''),
         artist: meta.artist || 'Unknown Artist',
         album: meta.album || 'Unknown Album',
-        cover: picture,
+        cover: picture ? await this.resizeCover(picture) : '',
         handle: fileInfo.handle,
         lyrics,
         addedAt: Date.now()
@@ -546,7 +572,6 @@ class MusicPlayerApp {
       // Fallback 2: Generate cover via Canvas if still empty
       if (!song.cover) {
         song.cover = this.generateCoverArt(song.artist, song.album);
-        this.saveCover(song.id, song.cover);
       }
 
       await this.saveSong(song);
@@ -594,18 +619,17 @@ class MusicPlayerApp {
         title: meta.title || file.name.replace(/\.[^.]+$/, ''),
         artist: meta.artist || 'Unknown Artist',
         album: meta.album || 'Unknown Album',
-        cover: picture,
+        cover: picture ? await this.resizeCover(picture) : '',
         lyrics,
         addedAt: Date.now()
       };
 
-      // No file handle for fallback input — store blob URL
-      song._blob = file;
+      // Store blob reference but DON'T keep the whole File — store as objectURL
+      song._blobUrl = URL.createObjectURL(file);
 
       // Fallback 2: Generate cover
       if (!song.cover) {
         song.cover = this.generateCoverArt(song.artist, song.album);
-        this.saveCover(song.id, song.cover);
       }
 
       await this.saveSong(song);
@@ -653,8 +677,8 @@ class MusicPlayerApp {
   // =====================
   generateCoverArt(artist, album) {
     const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = 100;
+    canvas.height = 100;
     const ctx = canvas.getContext('2d');
 
     // Pick a gradient based on hash
@@ -662,47 +686,61 @@ class MusicPlayerApp {
     const colors = COVER_GRADIENTS[hash % COVER_GRADIENTS.length];
 
     // Draw gradient background
-    const grad = ctx.createLinearGradient(0, 0, 300, 300);
+    const grad = ctx.createLinearGradient(0, 0, 100, 100);
     grad.addColorStop(0, colors[0]);
     grad.addColorStop(1, colors[1]);
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 300, 300);
+    ctx.fillRect(0, 0, 100, 100);
 
     // Decorative circles
     ctx.globalAlpha = 0.12;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(220, 80, 90, 0, Math.PI * 2);
+    ctx.arc(73, 27, 30, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(60, 250, 60, 0, Math.PI * 2);
+    ctx.arc(20, 83, 20, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
     // Initials
     const initials = this.getInitials(artist || album || '?');
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.font = 'bold 80px Outfit, sans-serif';
+    ctx.font = 'bold 32px Outfit, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    ctx.shadowBlur = 12;
-    ctx.fillText(initials, 150, 140);
+    ctx.fillText(initials, 50, 43);
 
     // Album name at bottom
-    ctx.shadowBlur = 0;
-    ctx.font = '500 16px Outfit, sans-serif';
+    ctx.font = '500 9px Outfit, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     const displayAlbum = (album && album !== 'Unknown Album') ? album : artist;
-    const truncAlbum = displayAlbum.length > 22 ? displayAlbum.substring(0, 20) + '...' : displayAlbum;
-    ctx.fillText(truncAlbum, 150, 240);
+    const truncAlbum = displayAlbum.length > 14 ? displayAlbum.substring(0, 12) + '...' : displayAlbum;
+    ctx.fillText(truncAlbum, 50, 78);
 
     // Music note icon
-    ctx.font = '400 32px serif';
+    ctx.font = '400 14px serif';
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText('♪', 150, 270);
+    ctx.fillText('\u266A', 50, 90);
 
-    return canvas.toDataURL('image/jpeg', 0.85);
+    return canvas.toDataURL('image/jpeg', 0.7);
+  }
+
+  // Resize cover art to save memory (max 100x100)
+  async resizeCover(base64, maxDim = 100) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = maxDim;
+        canvas.height = maxDim;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, maxDim, maxDim);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = () => resolve(base64);
+      img.src = base64;
+    });
   }
 
   getInitials(str) {
@@ -790,6 +828,12 @@ class MusicPlayerApp {
             else color.b = Math.min(255, color.b + 50);
           }
 
+          // LRU: limit cache to 15 entries
+          this._colorCacheKeys.push(imgSrc);
+          if (this._colorCacheKeys.length > 15) {
+            const oldest = this._colorCacheKeys.shift();
+            delete this.colorCache[oldest];
+          }
           this.colorCache[imgSrc] = color;
           resolve(color);
         } catch (e) {
@@ -803,14 +847,17 @@ class MusicPlayerApp {
 
   applyDynamicColor(color) {
     const root = document.documentElement;
-    root.style.setProperty('--dynamic-accent', `rgb(${color.r}, ${color.g}, ${color.b})`);
-    root.style.setProperty('--dynamic-accent-rgb', `${color.r}, ${color.g}, ${color.b}`);
+    const rgb = `${color.r}, ${color.g}, ${color.b}`;
+    root.style.setProperty('--dynamic-accent', `rgb(${rgb})`);
+    root.style.setProperty('--dynamic-accent-rgb', rgb);
+    this._cachedAccentRGB = rgb;
   }
 
   resetDynamicColor() {
     const root = document.documentElement;
     root.style.setProperty('--dynamic-accent', '#1db954');
     root.style.setProperty('--dynamic-accent-rgb', '29, 185, 84');
+    this._cachedAccentRGB = '29, 185, 84';
   }
 
   // =====================
@@ -821,8 +868,8 @@ class MusicPlayerApp {
     try {
       this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       this.analyser = this.audioCtx.createAnalyser();
-      this.analyser.fftSize = 256;
-      this.analyser.smoothingTimeConstant = 0.8;
+      this.analyser.fftSize = 512;
+      this.analyser.smoothingTimeConstant = 0.65;
       this.gainNode = this.audioCtx.createGain();
       this.gainNode.gain.value = 1;
 
@@ -892,67 +939,69 @@ class MusicPlayerApp {
       // Smooth the frequency values using custom bouncy attack/decay filter
       let averageAmplitude = 0;
       for (let i = 0; i < barCount; i++) {
-        const rawVal = dataArray[i] / 255;
+        // Logarithmic frequency mapping: expands the bass/mid frequencies across the bars
+        // This makes the visualizer incredibly responsive to modern music
+        const dataIndex = Math.floor(Math.pow(i / (barCount - 1), 1.4) * (bufferLength * 0.65));
+        let rawVal = dataArray[dataIndex] / 255;
+        
+        // Boost higher bins to compensate for natural roll-off in music
+        rawVal = rawVal * (1 + (i / barCount) * 1.5);
+        if (rawVal > 1) rawVal = 1;
+
         averageAmplitude += rawVal;
 
         if (rawVal > this.visualizerSmoothed[i]) {
-          // Rapid attack
-          this.visualizerSmoothed[i] += (rawVal - this.visualizerSmoothed[i]) * 0.45;
+          // Rapid attack for punchiness
+          this.visualizerSmoothed[i] += (rawVal - this.visualizerSmoothed[i]) * 0.55;
         } else {
-          // Slow decay
-          this.visualizerSmoothed[i] += (rawVal - this.visualizerSmoothed[i]) * 0.12;
+          // Smooth, elegant decay
+          this.visualizerSmoothed[i] += (rawVal - this.visualizerSmoothed[i]) * 0.15;
         }
 
         // Handle peaks
         if (this.visualizerSmoothed[i] > this.visualizerPeaks[i]) {
           this.visualizerPeaks[i] = this.visualizerSmoothed[i];
         } else {
-          this.visualizerPeaks[i] -= 0.012; // slowly drift down
+          this.visualizerPeaks[i] -= 0.015; // slowly drift down
           if (this.visualizerPeaks[i] < 0) this.visualizerPeaks[i] = 0;
         }
       }
       averageAmplitude /= barCount;
 
-      // Get current dynamic accent color
-      const style = getComputedStyle(document.documentElement);
-      const accentRGB = style.getPropertyValue('--dynamic-accent-rgb').trim() || '29, 185, 84';
-      const accentHex = style.getPropertyValue('--dynamic-accent').trim() || '#1db954';
+      // Use cached accent color (updated on song change, not every frame)
+      const accentRGB = this._cachedAccentRGB || '29, 185, 84';
 
       // ==========================================
-      // MODE 0: Symmetrical Pillars (Glow columns + Peaks)
+      // MODE 0: Modern Spectrum Bars (Bottom-up with Glow & Peaks)
       // ==========================================
       if (this.visualizerMode === 0) {
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = `rgba(${accentRGB}, 0.35)`;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `rgba(${accentRGB}, 0.5)`;
 
         for (let i = 0; i < barCount; i++) {
           const val = this.visualizerSmoothed[i];
-          const barH = Math.max(2, val * h * 0.72); // min 2px height
+          const barH = Math.max(2, val * h * 0.85);
 
           const x = i * barWidth + gap / 2;
-          const y = h / 2 - barH / 2;
+          const y = h - barH;
           const width = barWidth - gap;
-          const radius = Math.min(width, 4) / 2;
 
-          // Draw mirrored rounded column
-          ctx.fillStyle = `rgba(${accentRGB}, ${0.35 + val * 0.65})`;
-          ctx.beginPath();
-          ctx.roundRect(x, y, width, barH, radius);
-          ctx.fill();
-
-          // Draw Peak Dots
-          const peakVal = this.visualizerPeaks[i];
-          const peakH = peakVal * h * 0.72;
-          ctx.fillStyle = `rgba(${accentRGB}, 0.95)`;
+          // Vibrant Gradient bar
+          const gradient = ctx.createLinearGradient(0, h, 0, h - barH);
+          gradient.addColorStop(0, `rgba(${accentRGB}, 0.15)`);
+          gradient.addColorStop(1, `rgba(${accentRGB}, 0.95)`);
           
-          // Top peak dot
+          ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.arc(x + width / 2, h / 2 - peakH / 2 - 2, 1.5, 0, Math.PI * 2);
+          ctx.roundRect(x, y, width, barH, [width/2, width/2, 0, 0]);
           ctx.fill();
 
-          // Bottom peak dot
+          // Draw Floating Peak Cap
+          const peakVal = this.visualizerPeaks[i];
+          const peakH = Math.max(2, peakVal * h * 0.85);
+          ctx.fillStyle = '#fff';
           ctx.beginPath();
-          ctx.arc(x + width / 2, h / 2 + peakH / 2 + 2, 1.5, 0, Math.PI * 2);
+          ctx.roundRect(x, h - peakH - 4, width, Math.max(2, width/2), 2);
           ctx.fill();
         }
         ctx.shadowBlur = 0; // reset glow
@@ -963,32 +1012,31 @@ class MusicPlayerApp {
       // ==========================================
       else if (this.visualizerMode === 1) {
         // Fast horizontal movement powered by sound energy
-        this.visualizerPhase += 0.02 + averageAmplitude * 0.08;
+        this.visualizerPhase += 0.02 + averageAmplitude * 0.1;
 
         const drawSiriWave = (phaseShift, scale, alpha, strokeWidth) => {
           ctx.strokeStyle = `rgba(${accentRGB}, ${alpha})`;
           ctx.lineWidth = strokeWidth;
           ctx.shadowBlur = strokeWidth > 1.5 ? 12 : 0;
-          ctx.shadowColor = `rgba(${accentRGB}, 0.4)`;
+          ctx.shadowColor = `rgba(${accentRGB}, 0.6)`;
           ctx.beginPath();
           ctx.moveTo(0, h / 2);
 
           for (let i = 0; i <= barCount; i++) {
             const x = (i / barCount) * w;
             const smoothIndex = Math.min(i, barCount - 1);
-            const amplitude = this.visualizerSmoothed[smoothIndex] * h * 0.45 * scale;
+            const amplitude = this.visualizerSmoothed[smoothIndex] * h * 0.55 * scale;
             
             // Generate a natural flowing wave using sine combined with frequency levels
-            const angle = (i * 0.18) + this.visualizerPhase + phaseShift;
+            const angle = (i * 0.15) + this.visualizerPhase + phaseShift;
             const y = h / 2 + Math.sin(angle) * amplitude;
 
             if (i === 0) ctx.moveTo(x, y);
             else {
-              // Smooth bezier connecting
               const prevX = ((i - 1) / barCount) * w;
-              const prevAngle = ((i - 1) * 0.18) + this.visualizerPhase + phaseShift;
+              const prevAngle = ((i - 1) * 0.15) + this.visualizerPhase + phaseShift;
               const prevSmoothIndex = Math.max(0, i - 1);
-              const prevAmp = this.visualizerSmoothed[prevSmoothIndex] * h * 0.45 * scale;
+              const prevAmp = this.visualizerSmoothed[prevSmoothIndex] * h * 0.55 * scale;
               const prevY = h / 2 + Math.sin(prevAngle) * prevAmp;
 
               ctx.quadraticCurveTo(prevX + (x - prevX) / 2, prevY, x, y);
@@ -998,89 +1046,41 @@ class MusicPlayerApp {
         };
 
         // Draw 3 layers for organic 3D fluid feeling
-        drawSiriWave(0, 1.0, 0.85, 2.5);         // Main forefront wave
-        drawSiriWave(Math.PI / 2, 0.65, 0.45, 1.5); // Secondary wave
+        drawSiriWave(0, 1.0, 0.95, 2.5);         // Main forefront wave
+        drawSiriWave(Math.PI / 2, 0.65, 0.5, 1.5); // Secondary wave
         drawSiriWave(Math.PI, 0.35, 0.25, 1.0);      // Background subtle wave
         ctx.shadowBlur = 0; // reset
       }
 
       // ==========================================
-      // MODE 2: Glow Waveform Contour & Particle Aura
+      // MODE 2: Mirrored Spectrum Bars (Soundcloud Style)
       // ==========================================
       else if (this.visualizerMode === 2) {
-        // Draw symmetrical smooth curve contour
-        ctx.beginPath();
-        ctx.moveTo(0, h / 2);
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `rgba(${accentRGB}, 0.35)`;
 
-        // Generate contour path
         for (let i = 0; i < barCount; i++) {
-          const x = (i / (barCount - 1)) * w;
-          const y = h / 2 - (this.visualizerSmoothed[i] * h * 0.38);
-          if (i === 0) ctx.moveTo(x, y);
-          else {
-            const prevX = ((i - 1) / (barCount - 1)) * w;
-            const prevY = h / 2 - (this.visualizerSmoothed[i - 1] * h * 0.38);
-            ctx.quadraticCurveTo(prevX + (x - prevX) / 2, prevY, x, y);
-          }
-        }
-
-        // Mirror contour path on the bottom
-        for (let i = barCount - 1; i >= 0; i--) {
-          const x = (i / (barCount - 1)) * w;
-          const y = h / 2 + (this.visualizerSmoothed[i] * h * 0.38);
-          const nextX = ((i - 1) / (barCount - 1)) * w;
-          const nextY = h / 2 + (this.visualizerSmoothed[Math.max(0, i - 1)] * h * 0.38);
-          ctx.quadraticCurveTo(x - (x - nextX) / 2, y, nextX, nextY);
-        }
-
-        ctx.closePath();
-
-        // Beautiful glassmorphic gradient fill
-        const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, `rgba(${accentRGB}, 0.25)`);
-        gradient.addColorStop(0.5, `rgba(${accentRGB}, 0.02)`);
-        gradient.addColorStop(1, `rgba(${accentRGB}, 0.25)`);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Stroke line
-        ctx.strokeStyle = `rgba(${accentRGB}, 0.8)`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Spawn dynamic audio particles at the center-wave peaks
-        for (let i = 2; i < barCount - 2; i += 2) {
           const val = this.visualizerSmoothed[i];
-          if (val > 0.35 && Math.random() < 0.15) {
-            const x = (i / (barCount - 1)) * w;
-            this.visualizerParticles.push({
-              x: x,
-              y: h / 2 + (Math.random() - 0.5) * (val * h * 0.7),
-              vx: (Math.random() - 0.5) * 0.6,
-              vy: (Math.random() - 0.5) * 0.5 - 0.2, // bias floating upwards
-              size: Math.random() * 2 + 1,
-              alpha: 0.9
-            });
-          }
-        }
+          const barH = Math.max(2, val * h * 0.42); // max just under half height
 
-        // Draw and update active particles
-        for (let i = this.visualizerParticles.length - 1; i >= 0; i--) {
-          const p = this.visualizerParticles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.alpha -= 0.015; // slow fade
+          const x = i * barWidth + gap / 2;
+          const yTop = h / 2 - barH;
+          const yBot = h / 2;
+          const width = barWidth - gap;
 
-          if (p.alpha <= 0 || p.x < 0 || p.x > w || p.y < 0 || p.y > h) {
-            this.visualizerParticles.splice(i, 1);
-            continue;
-          }
-
-          ctx.fillStyle = `rgba(${accentRGB}, ${p.alpha})`;
+          // Top half (bright and punchy)
+          ctx.fillStyle = `rgba(${accentRGB}, 0.95)`;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.roundRect(x, yTop, width, barH, [width/2, width/2, 0, 0]);
+          ctx.fill();
+          
+          // Bottom half (faded reflection)
+          ctx.fillStyle = `rgba(${accentRGB}, 0.35)`;
+          ctx.beginPath();
+          ctx.roundRect(x, yBot + 1, width, barH * 0.75, [0, 0, width/2, width/2]);
           ctx.fill();
         }
+        ctx.shadowBlur = 0; // reset
       }
 
       // ==========================================
@@ -1093,7 +1093,7 @@ class MusicPlayerApp {
         ctx.font = '700 8.5px Outfit, sans-serif';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
-        const modeLabel = ["Symmetric Pillars", "Siri Fluid Wave", "Glow Waveform"][this.visualizerMode];
+        const modeLabel = ["Modern Spectrum", "Siri Fluid Wave", "Mirrored Spectrum"][this.visualizerMode];
         ctx.fillText(modeLabel.toUpperCase(), w - 8, 6);
       }
     };
@@ -1193,13 +1193,13 @@ class MusicPlayerApp {
       const isFav = this.favorites.has(song.id);
 
       div.innerHTML = `
-        <img src="${coverSrc}" onerror="this.src='${this.generateCoverArt(song.artist, song.album)}'">
+        <img src="${coverSrc}" loading="lazy" onerror="this.src='${this.generateCoverArt(song.artist, song.album)}'">
         <div class="meta">
           <div class="title">${song.title}</div>
           <div class="artist">${song.artist}</div>
         </div>
         <button class="fav-btn ${isFav ? 'active' : ''}" data-id="${song.id}" title="Favorite">
-          ${isFav ? '<i class="ph-fill ph-heart" style="color:#ff4b4b"></i>' : '<i class="ph-bold ph-heart"></i>'}
+          ${isFav ? '<span style="color:#ff4b4b">' + IC.heartFill + '</span>' : IC.heart}
         </button>
       `;
 
@@ -1209,7 +1209,7 @@ class MusicPlayerApp {
         e.stopPropagation();
         this.toggleFavorite(song.id);
         favBtn.classList.toggle('active');
-        favBtn.innerHTML = this.favorites.has(song.id) ? '<i class="ph-fill ph-heart" style="color:#ff4b4b"></i>' : '<i class="ph-bold ph-heart"></i>';
+        favBtn.innerHTML = this.favorites.has(song.id) ? '<span style="color:#ff4b4b">' + IC.heartFill + '</span>' : IC.heart;
       };
 
       div.onclick = () => {
@@ -1438,9 +1438,8 @@ class MusicPlayerApp {
         const file = await song.handle.getFile();
         this.currentObjectURL = URL.createObjectURL(file);
         src = this.currentObjectURL;
-      } else if (song._blob) {
-        this.currentObjectURL = URL.createObjectURL(song._blob);
-        src = this.currentObjectURL;
+      } else if (song._blobUrl) {
+        src = song._blobUrl;
       } else if (song.url) {
         src = song.url;
       } else {
@@ -1461,8 +1460,8 @@ class MusicPlayerApp {
         setTimeout(() => this.normalizeVolume(), 800);
       }
 
-      document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-pause"></i>';
-      document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-pause-circle"></i>';
+      document.getElementById('playBtn').innerHTML = IC.pause;
+      document.getElementById('miniPlay').innerHTML = IC.pauseCircle;
 
       const coverSrc = this.getSongCover(song);
       document.getElementById('miniTitle').textContent = song.title;
@@ -1509,12 +1508,12 @@ class MusicPlayerApp {
       if (this.audioCtx && this.audioCtx.state === 'suspended') {
         this.audioCtx.resume();
       }
-      document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-pause"></i>';
-      document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-pause-circle"></i>';
+      document.getElementById('playBtn').innerHTML = IC.pause;
+      document.getElementById('miniPlay').innerHTML = IC.pauseCircle;
     } else {
       this.audio.pause();
-      document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-play"></i>';
-      document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-play-circle"></i>';
+      document.getElementById('playBtn').innerHTML = IC.play;
+      document.getElementById('miniPlay').innerHTML = IC.playCircle;
     }
   }
 
@@ -1535,8 +1534,8 @@ class MusicPlayerApp {
         this.currentIndex = 0;
       } else {
         this.audio.pause();
-        document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-play"></i>';
-        document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-play-circle"></i>';
+        document.getElementById('playBtn').innerHTML = IC.play;
+        document.getElementById('miniPlay').innerHTML = IC.playCircle;
         return;
       }
     }
@@ -1625,8 +1624,8 @@ class MusicPlayerApp {
       this.play(song).then(() => {
         this.audio.currentTime = state.time || 0;
         this.audio.pause();
-        document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-play"></i>';
-        document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-play-circle"></i>';
+        document.getElementById('playBtn').innerHTML = IC.play;
+        document.getElementById('miniPlay').innerHTML = IC.playCircle;
       });
     }
   }
@@ -1642,7 +1641,8 @@ class MusicPlayerApp {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2000);
+    clearTimeout(this._toastTimeout);
+    this._toastTimeout = setTimeout(() => el.classList.remove('show'), 2000);
   }
 }
 
@@ -1651,7 +1651,7 @@ if ('serviceWorker' in navigator) {
   const sw = `
     self.addEventListener('install', e => {
       e.waitUntil(
-        caches.open('music-pwa-v2').then(cache => cache.addAll(['./']))
+        caches.open('music-pwa-v3').then(cache => cache.addAll(['./']))
       );
     });
     self.addEventListener('fetch', e => {
@@ -1661,7 +1661,10 @@ if ('serviceWorker' in navigator) {
     });
   `;
   const blob = new Blob([sw], { type: 'text/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(blob));
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).then(() => {
+    URL.revokeObjectURL(swUrl);
+  });
 }
 
 new MusicPlayerApp();
