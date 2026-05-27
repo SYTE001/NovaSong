@@ -39,11 +39,11 @@ class MusicPlayerApp {
       if (err) {
         console.error("Audio error:", err);
         if (err.code === 4) {
-          this.toast("404 Error: Berkas musik tidak ditemukan di R2");
+          this.toast("Song missing in cloud storage");
         } else if (err.code === 2) {
           this.toast("Network Error: Jaringan terputus saat streaming");
         } else {
-          this.toast(`Error Streaming: Kode ${err.code}`);
+          this.toast("Song missing in cloud storage");
         }
       }
     };
@@ -951,7 +951,19 @@ class MusicPlayerApp {
   // RENDERING
   // =====================
   renderLibrary() {
-    this.renderSongs(this.songs, document.getElementById('libraryList'));
+    const list = document.getElementById('libraryList');
+    if (!list) return;
+    if (this.songs.length === 0) {
+      list.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px; color: var(--muted);">
+          <div style="font-size: 3.5rem; margin-bottom: 16px; opacity: 0.85;">☁</div>
+          <h3 style="color: var(--text); margin-bottom: 8px;">Pustaka Kosong</h3>
+          <p style="font-size: 0.9rem; max-width: 320px; margin: 0 auto 20px; line-height: 1.6;">Belum ada lagu disinkronisasi. Hubungkan ke R2 untuk memuat pustaka musik Anda.</p>
+        </div>
+      `;
+      return;
+    }
+    this.renderSongs(this.songs, list);
   }
 
   renderSongs(arr, el) {
@@ -1003,7 +1015,12 @@ class MusicPlayerApp {
   // ===== Albums Tab =====
   renderAlbums() {
     const grid = document.getElementById('albumsGrid');
+    if (!grid) return;
     grid.innerHTML = '';
+    if (this.songs.length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px;grid-column:1/-1;">Belum ada album.</p>';
+      return;
+    }
 
     const albumMap = {};
     this.songs.forEach(s => {
@@ -1035,7 +1052,12 @@ class MusicPlayerApp {
   // ===== Artists Tab =====
   renderArtists() {
     const grid = document.getElementById('artistsGrid');
+    if (!grid) return;
     grid.innerHTML = '';
+    if (this.songs.length === 0) {
+      grid.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px;grid-column:1/-1;">Belum ada artis.</p>';
+      return;
+    }
 
     const artistMap = {};
     this.songs.forEach(s => {
@@ -1076,8 +1098,14 @@ class MusicPlayerApp {
 
   // ===== Recently Added Tab =====
   renderRecentlyAdded() {
+    const list = document.getElementById('recentList');
+    if (!list) return;
+    if (this.songs.length === 0) {
+      list.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px;">Belum ada lagu yang ditambahkan.</p>';
+      return;
+    }
     const sorted = [...this.songs].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 50);
-    this.renderSongs(sorted, document.getElementById('recentList'));
+    this.renderSongs(sorted, list);
   }
 
   // ===== Favorites Tab =====
@@ -1202,21 +1230,11 @@ class MusicPlayerApp {
   // =====================
   async play(song) {
     try {
-      if (this.currentObjectURL) {
-        URL.revokeObjectURL(this.currentObjectURL);
-        this.currentObjectURL = null;
+      if (!song || !song.r2Key) {
+        throw new Error('Lagu tidak valid atau r2Key tidak ditemukan');
       }
 
-      let src;
-      if (song.r2Key) {
-        src = CONFIG.R2_BASE_URL + "/" + encodeURIComponent(song.r2Key);
-      } else if (song.url) {
-        src = song.url;
-      } else if (song._blobUrl) {
-        src = song._blobUrl;
-      } else {
-        throw new Error('Lagu tidak memiliki URL pemutar');
-      }
+      const src = CONFIG.R2_BASE_URL + "/" + encodeURIComponent(song.r2Key);
 
       // Use crossfade if already playing
       if (!this.audio.paused && this.audio.src) {
@@ -1284,7 +1302,7 @@ class MusicPlayerApp {
 
     } catch (e) {
       console.error(e);
-      this.toast('Tidak bisa memutar lagu');
+      this.toast('Song missing in cloud storage');
     }
   }
 
@@ -1434,23 +1452,11 @@ class MusicPlayerApp {
 }
 
 // Service Worker registration
-if ('serviceWorker' in navigator) {
-  const sw = `
-    self.addEventListener('install', e => {
-      e.waitUntil(
-        caches.open('music-pwa-v3').then(cache => cache.addAll(['./']))
-      );
-    });
-    self.addEventListener('fetch', e => {
-      e.respondWith(
-        caches.match(e.request).then(r => r || fetch(e.request))
-      );
-    });
-  `;
-  const blob = new Blob([sw], { type: 'text/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).then(() => {
-    URL.revokeObjectURL(swUrl);
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .catch(console.error);
   });
 }
 

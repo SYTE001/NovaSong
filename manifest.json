@@ -1,0 +1,9 @@
+{
+  "name": "NovaSong",
+  "short_name": "NovaSong",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1DB954",
+  "start_url": "./",
+  "icons": []
+}
