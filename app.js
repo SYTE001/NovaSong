@@ -169,12 +169,29 @@ class MusicPlayerApp {
     }
 
     // Import Logic
-    document.getElementById('importFolder').onclick = () => this.importMusic();
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const importBtn = document.getElementById('importFolder');
+    if (isMobile && importBtn) {
+      importBtn.innerHTML = '<span>🎵</span> Import Music Files';
+    }
+
+    if (importBtn) {
+      importBtn.onclick = () => this.importMusic();
+    }
 
     // Fallback file input handler
     const fallbackInput = document.getElementById('fallbackInput');
     if (fallbackInput) {
       fallbackInput.onchange = async (e) => {
+        const files = Array.from(e.target.files);
+        await this.importFromFileList(files);
+      };
+    }
+
+    // Mobile-friendly standard file input handler
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) {
+      fileInput.onchange = async (e) => {
         const files = Array.from(e.target.files);
         await this.importFromFileList(files);
       };
@@ -374,12 +391,20 @@ class MusicPlayerApp {
   // =====================
   async importMusic() {
     try {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) fileInput.click();
+        return;
+      }
+
       let files = [];
       if (window.showDirectoryPicker) {
         const dir = await window.showDirectoryPicker();
         files = await this.walkWithMeta(dir, '');
       } else {
-        document.getElementById('fallbackInput').click();
+        const fallbackInput = document.getElementById('fallbackInput');
+        if (fallbackInput) fallbackInput.click();
         return;
       }
 
@@ -409,7 +434,7 @@ class MusicPlayerApp {
       // Group by webkitRelativePath directory
       const grouped = {};
       for (const file of files) {
-        const parts = file.webkitRelativePath.split('/');
+        const parts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [];
         const dir = parts.slice(0, -1).join('/') || '.';
         if (!grouped[dir]) grouped[dir] = [];
         grouped[dir].push(file);
