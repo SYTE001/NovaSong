@@ -172,7 +172,7 @@ class MusicPlayerApp {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const importBtn = document.getElementById('importFolder');
     if (isMobile && importBtn) {
-      importBtn.innerHTML = '<span>🎵</span> Import Music Files';
+      importBtn.innerHTML = '<span><i class="ph-bold ph-music-notes"></i></span> Import Music Files';
     }
 
     if (importBtn) {
@@ -245,13 +245,13 @@ class MusicPlayerApp {
       const repeatBtn = document.getElementById('repeatBtn');
       if (this.repeatMode === 'off') {
         repeatBtn.classList.remove('active');
-        repeatBtn.textContent = '🔁';
+        repeatBtn.innerHTML = '<i class="ph-bold ph-repeat"></i>';
       } else if (this.repeatMode === 'all') {
         repeatBtn.classList.add('active');
-        repeatBtn.textContent = '🔁';
+        repeatBtn.innerHTML = '<i class="ph-bold ph-repeat"></i>';
       } else if (this.repeatMode === 'one') {
         repeatBtn.classList.add('active');
-        repeatBtn.textContent = '🔂';
+        repeatBtn.innerHTML = '<i class="ph-bold ph-repeat-once"></i>';
       }
       this.toast('Repeat: ' + this.repeatMode.toUpperCase());
     };
@@ -1199,7 +1199,7 @@ class MusicPlayerApp {
           <div class="artist">${song.artist}</div>
         </div>
         <button class="fav-btn ${isFav ? 'active' : ''}" data-id="${song.id}" title="Favorite">
-          ${isFav ? '❤️' : '🤍'}
+          ${isFav ? '<i class="ph-fill ph-heart" style="color:#ff4b4b"></i>' : '<i class="ph-bold ph-heart"></i>'}
         </button>
       `;
 
@@ -1209,7 +1209,7 @@ class MusicPlayerApp {
         e.stopPropagation();
         this.toggleFavorite(song.id);
         favBtn.classList.toggle('active');
-        favBtn.textContent = this.favorites.has(song.id) ? '❤️' : '🤍';
+        favBtn.innerHTML = this.favorites.has(song.id) ? '<i class="ph-fill ph-heart" style="color:#ff4b4b"></i>' : '<i class="ph-bold ph-heart"></i>';
       };
 
       div.onclick = () => {
@@ -1461,8 +1461,8 @@ class MusicPlayerApp {
         setTimeout(() => this.normalizeVolume(), 800);
       }
 
-      document.getElementById('playBtn').textContent = '⏸';
-      document.getElementById('miniPlay').textContent = '⏸';
+      document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-pause"></i>';
+      document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-pause-circle"></i>';
 
       const coverSrc = this.getSongCover(song);
       document.getElementById('miniTitle').textContent = song.title;
@@ -1509,12 +1509,12 @@ class MusicPlayerApp {
       if (this.audioCtx && this.audioCtx.state === 'suspended') {
         this.audioCtx.resume();
       }
-      document.getElementById('playBtn').textContent = '⏸';
-      document.getElementById('miniPlay').textContent = '⏸';
+      document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-pause"></i>';
+      document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-pause-circle"></i>';
     } else {
       this.audio.pause();
-      document.getElementById('playBtn').textContent = '▶';
-      document.getElementById('miniPlay').textContent = '▶';
+      document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-play"></i>';
+      document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-play-circle"></i>';
     }
   }
 
@@ -1535,8 +1535,8 @@ class MusicPlayerApp {
         this.currentIndex = 0;
       } else {
         this.audio.pause();
-        document.getElementById('playBtn').textContent = '▶';
-        document.getElementById('miniPlay').textContent = '▶';
+        document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-play"></i>';
+        document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-play-circle"></i>';
         return;
       }
     }
@@ -1625,8 +1625,8 @@ class MusicPlayerApp {
       this.play(song).then(() => {
         this.audio.currentTime = state.time || 0;
         this.audio.pause();
-        document.getElementById('playBtn').textContent = '▶';
-        document.getElementById('miniPlay').textContent = '▶';
+        document.getElementById('playBtn').innerHTML = '<i class="ph-fill ph-play"></i>';
+        document.getElementById('miniPlay').innerHTML = '<i class="ph-fill ph-play-circle"></i>';
       });
     }
   }

@@ -653,20 +653,12 @@ button, input {
   inset: -30px;
   background-size: cover;
   background-position: center;
-  filter: blur(50px) saturate(1.5);
+  filter: blur(30px) saturate(1.5);
   opacity: 0.25;
   transform: scale(1.15);
   pointer-events: none;
   z-index: 1;
-  animation: bgFloat 12s ease-in-out infinite alternate;
   transition: background-image 1.2s ease, opacity 0.8s ease;
-}
-
-@keyframes bgFloat {
-  0% { transform: scale(1.15) translate(0, 0); }
-  33% { transform: scale(1.2) translate(8px, -6px); }
-  66% { transform: scale(1.18) translate(-5px, 4px); }
-  100% { transform: scale(1.22) translate(3px, -3px); }
 }
 
 /* Overlay gradient on top of blur-bg for readability */
@@ -1099,7 +1091,7 @@ button, input {
     margin: 8px auto !important;
   }
   .now-content {
-    padding: 20px 16px 110px !important;
+    padding: 20px 16px calc(130px + env(safe-area-inset-bottom, 30px)) !important;
   }
   #npTitle {
     font-size: 1.15rem !important;
