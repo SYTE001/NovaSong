@@ -37,14 +37,8 @@ class MusicPlayerApp {
     this.audio.onerror = () => {
       const err = this.audio.error;
       if (err) {
-        console.error("Audio error:", err);
-        if (err.code === 4) {
-          this.toast("Song missing in cloud storage");
-        } else if (err.code === 2) {
-          this.toast("Network Error: Jaringan terputus saat streaming");
-        } else {
-          this.toast("Song missing in cloud storage");
-        }
+        console.error("REAL ERROR:", err);
+        this.toast(err.message || "Playback failed");
       }
     };
     this.db = null;
@@ -389,8 +383,8 @@ class MusicPlayerApp {
       try {
         res = await fetch(manifestUrl);
       } catch (netErr) {
-        console.error(netErr);
-        this.toast('Network Error: Gagal terhubung ke R2 / CORS terblokir');
+        console.error("REAL ERROR:", netErr);
+        this.toast(netErr.message || "Playback failed");
         return;
       }
 
@@ -441,8 +435,8 @@ class MusicPlayerApp {
       this.renderForYou();
       this.toast(`Sinkronisasi selesai! ${addedCount} lagu berhasil dimuat`);
     } catch (e) {
-      console.error(e);
-      this.toast('Gagal memproses manifest.json');
+      console.error("REAL ERROR:", e);
+      this.toast(e.message || "Playback failed");
     }
   }
 
@@ -1235,6 +1229,8 @@ class MusicPlayerApp {
       }
 
       const src = CONFIG.R2_BASE_URL + "/" + encodeURIComponent(song.r2Key);
+      console.log("URL:", src);
+      console.log("Song:", song);
 
       // Use crossfade if already playing
       if (!this.audio.paused && this.audio.src) {
@@ -1254,11 +1250,18 @@ class MusicPlayerApp {
       document.getElementById('miniPlay').innerHTML = IC.pauseCircle;
 
       const coverSrc = this.getSongCover(song);
+      const defaultCover = this.generateCoverArt(song.artist, song.album);
       document.getElementById('miniTitle').textContent = song.title;
       document.getElementById('miniArtist').textContent = song.artist;
-      document.getElementById('miniCover').src = coverSrc;
+      
+      const miniCover = document.getElementById('miniCover');
+      miniCover.onerror = () => { miniCover.src = defaultCover; };
+      miniCover.src = coverSrc;
 
-      document.getElementById('coverLarge').src = coverSrc;
+      const coverLarge = document.getElementById('coverLarge');
+      coverLarge.onerror = () => { coverLarge.src = defaultCover; };
+      coverLarge.src = coverSrc;
+      
       document.getElementById('blurBg').style.backgroundImage = `url(${coverSrc})`;
 
       document.getElementById('npTitle').textContent = song.title;
@@ -1301,8 +1304,8 @@ class MusicPlayerApp {
       document.querySelectorAll('.song').forEach(el => el.classList.remove('playing'));
 
     } catch (e) {
-      console.error(e);
-      this.toast('Song missing in cloud storage');
+      console.error("REAL ERROR:", e);
+      this.toast(e.message || "Playback failed");
     }
   }
 
