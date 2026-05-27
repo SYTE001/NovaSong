@@ -431,6 +431,9 @@ class MusicPlayerApp {
 
   async importFromFileList(files) {
     try {
+      if (files.length > 0) {
+        this.toast('Memproses ' + files.length + ' berkas...');
+      }
       // Group by webkitRelativePath directory
       const grouped = {};
       for (const file of files) {
@@ -615,15 +618,23 @@ class MusicPlayerApp {
   async readTags(file) {
     return new Promise(resolve => {
       jsmediatags.read(file, {
-        onSuccess: tag => {
+        onSuccess: async tag => {
           const t = tag.tags;
           let picture = '';
           if (t.picture) {
-            const data = t.picture.data;
-            const format = t.picture.format;
-            let str = '';
-            for (let i = 0; i < data.length; i++) str += String.fromCharCode(data[i]);
-            picture = `data:${format};base64,${btoa(str)}`;
+            try {
+              const data = t.picture.data;
+              const format = t.picture.format;
+              const blob = new Blob([new Uint8Array(data)], { type: format });
+              picture = await new Promise(res => {
+                const reader = new FileReader();
+                reader.onload = () => res(reader.result);
+                reader.onerror = () => res('');
+                reader.readAsDataURL(blob);
+              });
+            } catch (e) {
+              console.error("Gagal mengonversi cover art:", e);
+            }
           }
           resolve({
             title: t.title,
