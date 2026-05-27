@@ -3,38 +3,9 @@
    All features offline & local
    ============================ */
 
-const PRELOADED_SONGS = [
-  {
-    id: "dummy-1",
-    title: "Starlight Synthwave",
-    artist: "Synthwave Horizon",
-    album: "Neon Dreams",
-    cover: "synthwave_cover.png",
-    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    lyrics: "[00:05.00]🎵 (Instrumental Synthwave Intro)\n[00:15.00]Cruising down the neon grid\n[00:22.00]Beneath the digital sunset sky\n[00:30.00]Retro future vibes in my head\n[00:38.00]Watching the pixels pass us by\n[00:46.00]🎵 (Starlight Synthwave Solo)\n[01:05.00]We're riding the waves of synth\n[01:12.00]Lost in the infinite highway\n[01:20.00]Endless loop of starlight\n[01:28.00]🎵 (Synthwave Outro)",
-    addedAt: Date.now()
-  },
-  {
-    id: "dummy-2",
-    title: "Cozy Lofi Rain",
-    artist: "Lofi Study Beats",
-    album: "Chilled Afternoon",
-    cover: "lofi_cover.png",
-    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-    lyrics: "[00:03.00]🌧️ (Soft Rain Sounds)\n[00:10.00]Raindrops tapping on the glass\n[00:18.00]A warm cup of tea by my side\n[00:26.00]Pages turning, time moves slow\n[00:34.00]No worries, no place to hide\n[00:42.00]🎵 (Chill Piano Riff)\n[01:02.00]Let the beat wash your stress away\n[01:10.00]Drifting into the cozy vibe\n[01:18.00]Rainy day, peaceful mind\n[01:26.00]🌧️ (Rain Outro)",
-    addedAt: Date.now() - 86400000
-  },
-  {
-    id: "dummy-3",
-    title: "Holographic Ambient",
-    artist: "Astral Nebula",
-    album: "Deep Cosmos",
-    cover: "ambient_cover.png",
-    url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-    lyrics: "[00:05.00]🌌 (Ethereal Cosmic Intro)\n[00:20.00]Floating in the holographic space\n[00:35.00]Nebula colors swirling around\n[00:50.00]Weightless, absolute peace\n[01:05.00]No words, just cosmic sound\n[01:20.00]🎵 (Ambient Echoes)\n[02:00.00]Drifting through the astral gates\n[02:30.00]Endless galaxy of light",
-    addedAt: Date.now() - 172800000
-  }
-];
+const CONFIG = {
+  R2_BASE_URL: "https://PUBURL.r2.dev"
+};
 
 // Gradient palettes for auto-generated covers / avatars
 const COVER_GRADIENTS = [
@@ -63,6 +34,19 @@ const IC = {
 class MusicPlayerApp {
   constructor() {
     this.audio = new Audio();
+    this.audio.onerror = () => {
+      const err = this.audio.error;
+      if (err) {
+        console.error("Audio error:", err);
+        if (err.code === 4) {
+          this.toast("404 Error: Berkas musik tidak ditemukan di R2");
+        } else if (err.code === 2) {
+          this.toast("Network Error: Jaringan terputus saat streaming");
+        } else {
+          this.toast(`Error Streaming: Kode ${err.code}`);
+        }
+      }
+    };
     this.db = null;
     this.songs = [];
     this.playlists = [];
@@ -191,33 +175,10 @@ class MusicPlayerApp {
       };
     }
 
-    // Import Logic
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const importBtn = document.getElementById('importFolder');
-    if (isMobile && importBtn) {
-      importBtn.innerHTML = '<span>' + IC.musicNotes + '</span> Import Music Files';
-    }
-
-    if (importBtn) {
-      importBtn.onclick = () => this.importMusic();
-    }
-
-    // Fallback file input handler
-    const fallbackInput = document.getElementById('fallbackInput');
-    if (fallbackInput) {
-      fallbackInput.onchange = async (e) => {
-        const files = Array.from(e.target.files);
-        await this.importFromFileList(files);
-      };
-    }
-
-    // Mobile-friendly standard file input handler
-    const fileInput = document.getElementById('fileInput');
-    if (fileInput) {
-      fileInput.onchange = async (e) => {
-        const files = Array.from(e.target.files);
-        await this.importFromFileList(files);
-      };
+    // R2 Sync Logic
+    const syncBtn = document.getElementById('syncR2');
+    if (syncBtn) {
+      syncBtn.onclick = () => this.syncR2Library();
     }
 
     // Search (debounced 300ms)
@@ -366,12 +327,6 @@ class MusicPlayerApp {
       const req = tx.objectStore('songs').getAll();
       req.onsuccess = async () => {
         this.songs = req.result || [];
-        if (this.songs.length === 0) {
-          for (const s of PRELOADED_SONGS) {
-            await this.saveSong(s);
-            this.songs.push(s);
-          }
-        }
         resolve();
       };
     });
@@ -413,263 +368,82 @@ class MusicPlayerApp {
   }
 
   // =====================
-  // IMPORT MUSIC
+  // CLOUDFLARE R2 INTEGRATION
   // =====================
-  async importMusic() {
+  getCoverUrl(cover, artist, album) {
+    if (cover && cover.length > 0) {
+      if (cover.startsWith('http') || cover.startsWith('data:')) {
+        return cover;
+      }
+      return CONFIG.R2_BASE_URL + "/" + encodeURIComponent(cover);
+    }
+    return this.generateCoverArt(artist, album);
+  }
+
+  async syncR2Library() {
     try {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      if (isMobile) {
-        const fileInput = document.getElementById('fileInput');
-        if (fileInput) fileInput.click();
+      this.toast('Menghubungkan ke R2...');
+      const manifestUrl = CONFIG.R2_BASE_URL + "/manifest.json";
+      
+      let res;
+      try {
+        res = await fetch(manifestUrl);
+      } catch (netErr) {
+        console.error(netErr);
+        this.toast('Network Error: Gagal terhubung ke R2 / CORS terblokir');
         return;
       }
 
-      let files = [];
-      if (window.showDirectoryPicker) {
-        const dir = await window.showDirectoryPicker();
-        files = await this.walkWithMeta(dir, '');
-      } else {
-        const fallbackInput = document.getElementById('fallbackInput');
-        if (fallbackInput) fallbackInput.click();
+      if (!res.ok) {
+        if (res.status === 404) {
+          this.toast('404 Error: berkas manifest.json tidak ditemukan di R2');
+        } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+          this.toast('Bucket Offline: Server R2 tidak dapat diakses');
+        } else {
+          this.toast(`Gagal Sinkronisasi: HTTP ${res.status}`);
+        }
         return;
       }
 
-      // Group files by directory
-      const grouped = this.groupFilesByDir(files);
-
-      for (const [dirPath, dirFiles] of Object.entries(grouped)) {
-        const audioFiles = dirFiles.filter(f => /\.(mp3|wav|ogg|flac|aac)$/i.test(f.name));
-        const imageFiles = dirFiles.filter(f => /\.(jpg|jpeg|png)$/i.test(f.name));
-        const textFiles = dirFiles.filter(f => /\.(lrc|txt)$/i.test(f.name));
-
-        for (const audioFile of audioFiles) {
-          await this.processFile(audioFile, imageFiles, textFiles);
-        }
+      const list = await res.json();
+      if (!Array.isArray(list)) {
+        throw new Error("manifest.json format is not an array");
       }
 
+      let addedCount = 0;
+      for (const item of list) {
+        if (!item.r2Key) continue;
+
+        const existing = this.songs.find(s => s.id === item.r2Key);
+
+        const song = {
+          id: item.r2Key,
+          title: item.title || item.r2Key.replace(/\.[^.]+$/, ''),
+          artist: item.artist || 'Unknown Artist',
+          album: item.album || 'Unknown Album',
+          cover: item.cover || '',
+          lyrics: item.lyrics || '',
+          r2Key: item.r2Key,
+          addedAt: existing?.addedAt || Date.now()
+        };
+
+        if (!song.cover) {
+          song.cover = this.generateCoverArt(song.artist, song.album);
+        }
+
+        await this.saveSong(song);
+        addedCount++;
+      }
+
+      await this.loadSongs();
       this.renderLibrary();
-      this.toast('Import selesai! ' + this.songs.length + ' lagu');
+      this.renderPlaylists();
+      this.renderForYou();
+      this.toast(`Sinkronisasi selesai! ${addedCount} lagu berhasil dimuat`);
     } catch (e) {
       console.error(e);
-      this.toast('Import gagal');
+      this.toast('Gagal memproses manifest.json');
     }
-  }
-
-  async importFromFileList(files) {
-    try {
-      if (files.length > 0) {
-        this.toast('Memproses ' + files.length + ' berkas...');
-      }
-      // Group by webkitRelativePath directory
-      const grouped = {};
-      for (const file of files) {
-        const parts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [];
-        const dir = parts.slice(0, -1).join('/') || '.';
-        if (!grouped[dir]) grouped[dir] = [];
-        grouped[dir].push(file);
-      }
-
-      for (const [dirPath, dirFiles] of Object.entries(grouped)) {
-        const audioFiles = dirFiles.filter(f => /\.(mp3|wav|ogg|flac|aac)$/i.test(f.name));
-        const imageFiles = dirFiles.filter(f => /\.(jpg|jpeg|png)$/i.test(f.name));
-        const textFiles = dirFiles.filter(f => /\.(lrc|txt)$/i.test(f.name));
-
-        for (const audioFile of audioFiles) {
-          await this.processFileFromInput(audioFile, imageFiles, textFiles);
-        }
-      }
-
-      this.renderLibrary();
-      this.toast('Import selesai! ' + this.songs.length + ' lagu');
-    } catch (e) {
-      console.error(e);
-      this.toast('Import gagal');
-    }
-  }
-
-  async walkWithMeta(dir, basePath) {
-    const out = [];
-    for await (const entry of dir.values()) {
-      const path = basePath ? `${basePath}/${entry.name}` : entry.name;
-      if (entry.kind === 'file') {
-        out.push({ handle: entry, name: entry.name, dir: basePath, path });
-      } else if (entry.kind === 'directory') {
-        const nested = await this.walkWithMeta(entry, path);
-        out.push(...nested);
-      }
-    }
-    return out;
-  }
-
-  groupFilesByDir(files) {
-    const grouped = {};
-    for (const f of files) {
-      const dir = f.dir || '.';
-      if (!grouped[dir]) grouped[dir] = [];
-      grouped[dir].push(f);
-    }
-    return grouped;
-  }
-
-  async processFile(fileInfo, imageFiles, textFiles) {
-    try {
-      const file = await fileInfo.handle.getFile();
-      const meta = await this.readTags(file);
-
-      let picture = meta.picture || '';
-
-      // Fallback 1: Look for cover image in same directory
-      if (!picture && imageFiles.length > 0) {
-        const coverNames = ['cover.jpg', 'folder.jpg', 'albumart.jpg', 'front.png', 'cover.png', 'folder.png'];
-        for (const cn of coverNames) {
-          const match = imageFiles.find(f => f.name.toLowerCase() === cn);
-          if (match) {
-            try {
-              const imgFile = await match.handle.getFile();
-              const reader = new FileReader();
-              picture = await new Promise(resolve => {
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = () => resolve('');
-                reader.readAsDataURL(imgFile);
-              });
-            } catch (e) { /* skip */ }
-            break;
-          }
-        }
-      }
-
-      // Find lyrics file
-      let lyrics = '';
-      const baseName = file.name.replace(/\.[^.]+$/, '');
-      const lyricsSearchNames = [
-        `${baseName}.lrc`, `${baseName}.txt`,
-        `lyrics/${baseName}.lrc`, `lyrics/${baseName}.txt`
-      ];
-      for (const ln of lyricsSearchNames) {
-        const match = textFiles.find(f =>
-          f.name.toLowerCase() === ln.split('/').pop().toLowerCase()
-        );
-        if (match) {
-          try {
-            const txtFile = await match.handle.getFile();
-            lyrics = await txtFile.text();
-          } catch (e) { /* skip */ }
-          break;
-        }
-      }
-
-      const song = {
-        id: crypto.randomUUID(),
-        title: meta.title || file.name.replace(/\.[^.]+$/, ''),
-        artist: meta.artist || 'Unknown Artist',
-        album: meta.album || 'Unknown Album',
-        cover: picture ? await this.resizeCover(picture) : '',
-        handle: fileInfo.handle,
-        lyrics,
-        addedAt: Date.now()
-      };
-
-      // Fallback 2: Generate cover via Canvas if still empty
-      if (!song.cover) {
-        song.cover = this.generateCoverArt(song.artist, song.album);
-      }
-
-      await this.saveSong(song);
-      this.songs.push(song);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async processFileFromInput(file, imageFiles, textFiles) {
-    try {
-      const meta = await this.readTags(file);
-      let picture = meta.picture || '';
-
-      // Fallback 1: Cover image from same folder
-      if (!picture && imageFiles.length > 0) {
-        const coverNames = ['cover.jpg', 'folder.jpg', 'albumart.jpg', 'front.png', 'cover.png'];
-        for (const cn of coverNames) {
-          const match = imageFiles.find(f => f.name.toLowerCase() === cn);
-          if (match) {
-            const reader = new FileReader();
-            picture = await new Promise(resolve => {
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = () => resolve('');
-              reader.readAsDataURL(match);
-            });
-            break;
-          }
-        }
-      }
-
-      // Find lyrics file
-      let lyrics = '';
-      const baseName = file.name.replace(/\.[^.]+$/, '');
-      for (const tf of textFiles) {
-        const tfBase = tf.name.replace(/\.[^.]+$/, '');
-        if (tfBase.toLowerCase() === baseName.toLowerCase()) {
-          lyrics = await tf.text();
-          break;
-        }
-      }
-
-      const song = {
-        id: crypto.randomUUID(),
-        title: meta.title || file.name.replace(/\.[^.]+$/, ''),
-        artist: meta.artist || 'Unknown Artist',
-        album: meta.album || 'Unknown Album',
-        cover: picture ? await this.resizeCover(picture) : '',
-        lyrics,
-        addedAt: Date.now()
-      };
-
-      // Store blob reference but DON'T keep the whole File — store as objectURL
-      song._blobUrl = URL.createObjectURL(file);
-
-      // Fallback 2: Generate cover
-      if (!song.cover) {
-        song.cover = this.generateCoverArt(song.artist, song.album);
-      }
-
-      await this.saveSong(song);
-      this.songs.push(song);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async readTags(file) {
-    return new Promise(resolve => {
-      jsmediatags.read(file, {
-        onSuccess: async tag => {
-          const t = tag.tags;
-          let picture = '';
-          if (t.picture) {
-            try {
-              const data = t.picture.data;
-              const format = t.picture.format;
-              const blob = new Blob([new Uint8Array(data)], { type: format });
-              picture = await new Promise(res => {
-                const reader = new FileReader();
-                reader.onload = () => res(reader.result);
-                reader.onerror = () => res('');
-                reader.readAsDataURL(blob);
-              });
-            } catch (e) {
-              console.error("Gagal mengonversi cover art:", e);
-            }
-          }
-          resolve({
-            title: t.title,
-            artist: t.artist,
-            album: t.album,
-            picture
-          });
-        },
-        onError: () => resolve({})
-      });
-    });
   }
 
   // =====================
@@ -1223,8 +997,7 @@ class MusicPlayerApp {
   }
 
   getSongCover(song) {
-    if (song.cover && song.cover.length > 0) return song.cover;
-    return this.generateCoverArt(song.artist, song.album);
+    return this.getCoverUrl(song.cover, song.artist, song.album);
   }
 
   // ===== Albums Tab =====
@@ -1243,7 +1016,7 @@ class MusicPlayerApp {
     Object.values(albumMap).forEach(album => {
       const card = document.createElement('div');
       card.className = 'album-card';
-      const coverSrc = album.cover || this.generateCoverArt(album.artist, album.name);
+      const coverSrc = this.getCoverUrl(album.cover, album.artist, album.name);
       card.innerHTML = `
         <img src="${coverSrc}" onerror="this.src='${this.generateCoverArt(album.artist, album.name)}'">
         <div class="card-title">${album.name}</div>
@@ -1277,8 +1050,9 @@ class MusicPlayerApp {
       card.className = 'artist-card';
 
       if (artist.cover) {
+        const coverSrc = this.getCoverUrl(artist.cover, artist.name, 'Artist');
         card.innerHTML = `
-          <img src="${artist.cover}">
+          <img src="${coverSrc}" onerror="this.src='${this.generateCoverArt(artist.name, 'Artist')}'">
           <div class="card-title">${artist.name}</div>
           <div class="card-sub">${artist.songs.length} lagu</div>
         `;
@@ -1434,16 +1208,14 @@ class MusicPlayerApp {
       }
 
       let src;
-      if (song.handle?.getFile) {
-        const file = await song.handle.getFile();
-        this.currentObjectURL = URL.createObjectURL(file);
-        src = this.currentObjectURL;
-      } else if (song._blobUrl) {
-        src = song._blobUrl;
+      if (song.r2Key) {
+        src = CONFIG.R2_BASE_URL + "/" + encodeURIComponent(song.r2Key);
       } else if (song.url) {
         src = song.url;
+      } else if (song._blobUrl) {
+        src = song._blobUrl;
       } else {
-        throw new Error('Missing file handle/URL source');
+        throw new Error('Lagu tidak memiliki URL pemutar');
       }
 
       // Use crossfade if already playing
@@ -1474,7 +1246,22 @@ class MusicPlayerApp {
       document.getElementById('npTitle').textContent = song.title;
       document.getElementById('npArtist').textContent = song.artist;
 
-      this.renderLyrics(song.lyrics);
+      // Fetch lyrics file from R2 dynamically if it is a filename
+      let lyricsText = song.lyrics || '';
+      if (lyricsText && lyricsText.trim() && !lyricsText.includes('\n') && /\.(lrc|txt)$/i.test(lyricsText)) {
+        try {
+          const lyricsUrl = CONFIG.R2_BASE_URL + "/" + encodeURIComponent(lyricsText.trim());
+          const lyricRes = await fetch(lyricsUrl);
+          if (lyricRes.ok) {
+            lyricsText = await lyricRes.text();
+          } else {
+            lyricsText = '';
+          }
+        } catch (err) {
+          lyricsText = '';
+        }
+      }
+      this.renderLyrics(lyricsText);
 
       // Extract dominant color and apply adaptive UI
       this.extractDominantColor(coverSrc).then(color => {
