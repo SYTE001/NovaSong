@@ -38,7 +38,11 @@ class MusicPlayerApp {
       const err = this.audio.error;
       if (err) {
         console.error("REAL ERROR:", err);
-        this.toast(err.message || "Playback failed");
+        if (err.code === 4) {
+          this.toast("Song not found");
+        } else {
+          this.toast(err.message || "Playback failed");
+        }
       }
     };
     this.db = null;
@@ -929,7 +933,9 @@ class MusicPlayerApp {
     await new Promise(r => setTimeout(r, duration * 1000));
 
     // Switch source
+    this.audio.pause();
     this.audio.src = newSrc;
+    this.audio.load();
     await this.audio.play();
 
     // Fade in
@@ -1237,7 +1243,9 @@ class MusicPlayerApp {
         await this.crossfadeTo(src);
       } else {
         this.initAudioContext();
+        this.audio.pause();
         this.audio.src = src;
+        this.audio.load();
         await this.audio.play();
         // Resume AudioContext if suspended
         if (this.audioCtx && this.audioCtx.state === 'suspended') {
